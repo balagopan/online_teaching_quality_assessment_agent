@@ -1,20 +1,18 @@
-# 🎓 8x8 AI Online Class Quality Evaluator
+# 🎓 Online Class Quality Evaluator
 
-An AI-powered multimodal application designed to evaluate the operational and pedagogical quality of online classes for children (conducted by 8x8). The system analyzes full-length class recordings (visual and auditory signals) alongside optional audio transcripts to classify teaching sessions as **Poor**, **Average**, **Good**, or **Excellent**, delivering concrete, timestamped, evidence-based feedback.
-
-Built for the **Humaniti AI 24-Hour Build Challenge**.
+An AI-powered multimodal application designed to evaluate the quality of online classes for children. The system analyzes full-length class recordings (visual and auditory signals) alongside optional audio transcripts to classify the quality of the online class sessions as **Poor**, **Average**, **Good**, or **Excellent**, delivering concrete, timestamped, evidence-based feedback.
 
 ---
 
 ## 🌟 Key Features
 
 1. **Multimodal Analysis with Video & Transcript Alignment:**
-   - Evaluates direct visual signals (camera status, face framing, posture, lighting, and mandatory 8x8 branded virtual background).
+   - Evaluates direct visual signals (camera status, face framing, posture, lighting).
    - Ingests audio and synchronized VTT/SRT transcripts to evaluate turn-taking, onboarding, audio clarity, and pacing.
 
-2. **6-Dimension 8x8 QA Evaluation Rubric:**
+2. **6-Dimension Evaluation criteria:**
    - Evaluates sessions across all six core operational quality criteria:
-     1. 📷 **Visual Compliance & Background:** Mandatory 8x8 virtual background, camera kept ON with face visible throughout, good lighting without glitches.
+     1. 📷 **Visual Compliance & Background:** Camera kept ON with face visible throughout, good lighting without glitches.
      2. 🤝 **Rapport & Onboarding:** Warm rapport at class start (check-ins/warm-ups), proper introduction/onboarding for new joiners, and structured conclusions.
      3. 🎯 **Individual Consideration:** Calling each student by name, balanced turn-taking, and active engagement of quieter students.
      4. 📝 **Homework Assignment:** Explicit homework assigned before transitioning to tournaments or class conclusion.
@@ -22,23 +20,19 @@ Built for the **Humaniti AI 24-Hour Build Challenge**.
      6. 🔄 **Instructional Flow:** Structured progression (concept introduction, interactive demonstration, guided puzzles, and practice games without premature ending).
 
 3. **High-Efficiency Chunked Architecture:**
-   - Handles full 1-hour sessions using lossless FFmpeg video slicing (`imageio-ffmpeg` with `-c copy`) into 30-minute processing windows.
+   - Handles long sessions using lossless FFmpeg video slicing (`imageio-ffmpeg` with `-c copy`) into 30-minute processing windows.
    - Slices and aligns matching VTT transcript cues to each video slice.
-   - Preserves absolute timeline continuity using chunk-context prompts (`00:00:00` through `00:59:59`).
-   - Deduplicates observations across chunk boundaries.
+   - Optional ability to set overlap to preserve context.
 
 4. **Multi-Agent Pipeline:**
-   - **Observation Agent (Gemini):** Extracts concrete, timestamped observations (`HH:MM:SS`) with pedagogical rationales using structured Pydantic decoding.
-   - **Scoring Agent:** Rates all 6 dimensions on a 1–4 integer rubric backed by rationale citing observed evidence.
+   - **Observation Agent:** Extracts concrete, timestamped observations (`HH:MM:SS`) along with an explanation mentioning which critera the particular chunk is addressing. Uses Gemini 2.5 Pro.
+   - **Scoring Agent:** Rates all 6 dimensions on a 1–4 integer rubric backed by rationale citing observed evidence. Uses Gemini 2.5 Flash.
    - **Deterministic Classifier:** Pure Python computation of the arithmetic mean and boundary classification (eliminating LLM arithmetic hallucinations).
-   - **Summarising Agent:** Synthesizes an executive pedagogical summary explaining the classification.
+   - **Summarising Agent:** Synthesizes an executive pedagogical summary explaining the classification. Uses Gemini 2.5 Flash Lite
+   - Use of the model is based on the complexity of the task each agent is assigned.
 
-5. **Strict Child Privacy by Design:**
-   - Student identities are strictly anonymized as `"Student A"`, `"Student B"`, or `"Teacher"`.
-   - Files uploaded to the Gemini Files API are deleted immediately from remote servers via `finally` blocks upon completion.
-   - Temporary local video slices are purged automatically from disk.
-   - Video media and `.env` credentials are strictly excluded from version control via `.gitignore`.
-   - The deployed UI exclusively accepts direct user input (no sample recordings exposed).
+5. **Strict Privacy by Design:**
+   - The individuals identities are strictly anonymized as `"Student A"`, `"Student B"`, or `"Teacher"`.
 
 6. **Interactive Streamlit Web Dashboard:**
    - Supports **File Uploads** (with optional transcript uploader) and **Direct Video URLs**.
