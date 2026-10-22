@@ -1,0 +1,21 @@
+# Environment and keys
+.env
+*.env
+
+# Confidential Video recordings (Children data privacy)
+videos/
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
