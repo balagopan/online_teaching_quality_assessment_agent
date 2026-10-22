@@ -383,7 +383,7 @@ All timestamps in your observations MUST use absolute class timeline format (sta
 
                 
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-2.5-Pro",
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=observation_agent_prompt_template + "\n" + chunk_context_prompt,

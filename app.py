@@ -1,7 +1,5 @@
-import json
 import os
 import tempfile
-import time
 from pathlib import Path
 
 import requests
@@ -13,7 +11,7 @@ from main import evaluate_class_recording, outputSchema
 load_dotenv()
 
 st.set_page_config(
-    page_title="8x8 Class Quality Evaluator",
+    page_title="Online Class Quality Evaluator",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -105,7 +103,7 @@ with st.sidebar:
             os.environ["GEMINI_API_KEY"] = custom_key
 
     st.markdown("---")
-    st.header("📹 Video & Transcript Source")
+    st.header("Upload Video & Transcript Source")
     input_source = st.radio(
         "Choose video source:",
         ["Sample Videos", "Upload Video File", "Video URL"],
@@ -169,7 +167,7 @@ with st.sidebar:
     )
 
 # ================= Main Area =================
-st.markdown('<div class="main-title">🎓 8x8 AI Class Quality Evaluator</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🎓 Online Class Quality Evaluator</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Automated multimodal assessment of teacher-student interaction, instructional clarity, and visual engagement.</div>',
     unsafe_allow_html=True,
@@ -277,8 +275,7 @@ if res:
     st.subheader("📋 Executive Summary")
     st.info(res.summary, icon="ℹ️")
 
-    # 4. Dimension Scores & Rationales (6 8x8 Operational Criteria)
-    st.subheader("📊 8x8 Operational Quality Criteria Breakdown")
+    st.subheader("📊 Online Class Quality Evaluation")
 
     dimensions_meta = [
         ("Visual Compliance & Background", "visual_compliance", "📷"),
@@ -324,50 +321,3 @@ if res:
     else:
         st.write("No matching observations found.")
 
-    # 6. Export Options
-    st.markdown("---")
-    st.subheader("💾 Export Report")
-
-    json_data = res.model_dump_json(indent=2)
-    col_dl1, col_dl2 = st.columns(2)
-
-    with col_dl1:
-        st.download_button(
-            label="📥 Download JSON Report",
-            data=json_data,
-            file_name=f"class_evaluation_{int(time.time())}.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-
-    with col_dl2:
-        markdown_criteria_lines = "\n".join([
-            f"- **{label}:** {res.dimension_scores.get(key, 0)}/4\n  - *Rationale:* {res.rationale.get(key, 'N/A')}"
-            for label, key, _ in dimensions_meta
-        ])
-
-        markdown_report = f"""# 8x8 Class Quality Evaluation Report
-
-- **Overall Classification:** {res.overall_classification}
-- **Overall Score:** {res.overall_score:.2f} / 4.00
-
-## Executive Summary
-{res.summary}
-
-## 8x8 Operational Criteria Breakdown
-{markdown_criteria_lines}
-
-## Timestamped Observations
-""" + "\n".join([
-            f"- **[{obs.timestamp_start} - {obs.timestamp_end}]**: {obs.evidence}"
-            + (f"\n  - *Pedagogical Note:* {obs.rationale}" if getattr(obs, "rationale", None) else "")
-            for obs in res.observations
-        ])
-
-        st.download_button(
-            label="📝 Download Markdown Report",
-            data=markdown_report,
-            file_name=f"class_evaluation_{int(time.time())}.md",
-            mime="text/markdown",
-            use_container_width=True,
-        )
