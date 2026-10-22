@@ -102,43 +102,15 @@ with st.sidebar:
     st.header("Upload Video & Transcript Source")
     input_source = st.radio(
         "Choose video source:",
-        ["Sample Videos", "Upload Video File", "Video URL"],
+        ["Upload Video File", "Video URL"],
         index=0,
     )
 
-    selected_video_path = None
-    selected_transcript_path = None
     uploaded_file = None
     uploaded_transcript = None
     video_url = None
 
-    if input_source == "Sample Videos":
-        sample_dir = Path("videos")
-        sample_files = list(sample_dir.glob("*.mp4")) if sample_dir.exists() else []
-        if sample_files:
-            file_options = {f.name: f for f in sample_files}
-            chosen_name = st.selectbox("Select sample video:", list(file_options.keys()))
-            selected_video_path = file_options[chosen_name]
-
-            # Auto-detect or select transcript in videos/
-            vtt_files = list(sample_dir.glob("*.vtt")) + list(sample_dir.glob("*.srt")) + list(sample_dir.glob("*.txt"))
-            transcript_options = {"None": None}
-            transcript_options.update({t.name: t for t in vtt_files})
-            
-            # Pre-select matching transcript if name resembles video
-            default_t_idx = 0
-            video_stem = selected_video_path.stem.split(" ")[0].lower()
-            for idx, name in enumerate(transcript_options.keys()):
-                if video_stem in name.lower():
-                    default_t_idx = idx
-                    break
-
-            chosen_t = st.selectbox("Matching transcript (optional):", list(transcript_options.keys()), index=default_t_idx)
-            selected_transcript_path = transcript_options[chosen_t]
-        else:
-            st.info("No sample videos found in videos/ directory.")
-
-    elif input_source == "Upload Video File":
+    if input_source == "Upload Video File":
         uploaded_file = st.file_uploader(
             "Upload class recording (.mp4, .mov, .avi, .mkv)",
             type=["mp4", "mov", "avi", "mkv"],
@@ -186,14 +158,7 @@ if start_eval:
     temp_dir = tempfile.mkdtemp()
 
     try:
-        if input_source == "Sample Videos":
-            if not selected_video_path or not Path(selected_video_path).exists():
-                st.error("Please select a valid sample video.")
-                st.stop()
-            target_path = Path(selected_video_path)
-            target_transcript_path = selected_transcript_path
-
-        elif input_source == "Upload Video File":
+        if input_source == "Upload Video File":
             if not uploaded_file:
                 st.error("Please upload a video file first.")
                 st.stop()
