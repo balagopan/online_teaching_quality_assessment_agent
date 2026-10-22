@@ -94,17 +94,18 @@ def download_video_from_url(url: str, dest_path: Path, progress_bar) -> None:
 # ================= Sidebar =================
 with st.sidebar:
     st.header("⚙️ Configuration")
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
     if api_key:
-        st.success("Gemini API Key detected", icon="✅")
+        st.success("Google Gemini API Key detected", icon="✅")
     else:
-        st.error("GEMINI_API_KEY not found in .env", icon="⚠️")
+        st.error("API Key not found in .env", icon="⚠️")
         custom_key = st.text_input("Enter Gemini API Key", type="password")
         if custom_key:
+            os.environ["GOOGLE_API_KEY"] = custom_key
             os.environ["GEMINI_API_KEY"] = custom_key
 
     st.markdown("---")
-    st.header("📹 Video Source")
+    st.header("📹 Video & Transcript Source")
     input_source = st.radio(
         "Choose video source:",
         ["Sample Videos", "Upload Video File", "Video URL"],
@@ -112,7 +113,9 @@ with st.sidebar:
     )
 
     selected_video_path = None
+    selected_transcript_path = None
     uploaded_file = None
+    uploaded_transcript = None
     video_url = None
 
     if input_source == "Sample Videos":
@@ -122,6 +125,22 @@ with st.sidebar:
             file_options = {f.name: f for f in sample_files}
             chosen_name = st.selectbox("Select sample video:", list(file_options.keys()))
             selected_video_path = file_options[chosen_name]
+
+            # Auto-detect or select transcript in videos/
+            vtt_files = list(sample_dir.glob("*.vtt")) + list(sample_dir.glob("*.srt")) + list(sample_dir.glob("*.txt"))
+            transcript_options = {"None": None}
+            transcript_options.update({t.name: t for t in vtt_files})
+            
+            # Pre-select matching transcript if name resembles video
+            default_t_idx = 0
+            video_stem = selected_video_path.stem.split(" ")[0].lower()
+            for idx, name in enumerate(transcript_options.keys()):
+                if video_stem in name.lower():
+                    default_t_idx = idx
+                    break
+
+            chosen_t = st.selectbox("Matching transcript (optional):", list(transcript_options.keys()), index=default_t_idx)
+            selected_transcript_path = transcript_options[chosen_t]
         else:
             st.info("No sample videos found in videos/ directory.")
 
@@ -129,6 +148,10 @@ with st.sidebar:
         uploaded_file = st.file_uploader(
             "Upload class recording (.mp4, .mov, .avi, .mkv)",
             type=["mp4", "mov", "avi", "mkv"],
+        )
+        uploaded_transcript = st.file_uploader(
+            "Upload transcript (optional - .vtt, .srt, .txt):",
+            type=["vtt", "srt", "txt"],
         )
 
     elif input_source == "Video URL":
@@ -161,6 +184,7 @@ start_eval = st.button("🚀 Evaluate Recording", type="primary", use_container_
 
 if start_eval:
     target_path = None
+    target_transcript_path = None
     temp_dir = tempfile.mkdtemp()
 
     try:
@@ -169,6 +193,7 @@ if start_eval:
                 st.error("Please select a valid sample video.")
                 st.stop()
             target_path = Path(selected_video_path)
+            target_transcript_path = selected_transcript_path
 
         elif input_source == "Upload Video File":
             if not uploaded_file:
@@ -177,6 +202,11 @@ if start_eval:
             target_path = Path(temp_dir) / uploaded_file.name
             with open(target_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
+
+            if uploaded_transcript:
+                target_transcript_path = Path(temp_dir) / uploaded_transcript.name
+                with open(target_transcript_path, "wb") as f:
+                    f.write(uploaded_transcript.getbuffer())
 
         elif input_source == "Video URL":
             if not video_url:
@@ -197,6 +227,7 @@ if start_eval:
 
             result: outputSchema = evaluate_class_recording(
                 video_path=target_path,
+                transcript_path=target_transcript_path,
                 progress_callback=update_ui_progress,
             )
 
@@ -246,23 +277,27 @@ if res:
     st.subheader("📋 Executive Summary")
     st.info(res.summary, icon="ℹ️")
 
-    # 4. Dimension Scores & Rationales
-    st.subheader("📊 Pedagogical Dimension Breakdown")
+    # 4. Dimension Scores & Rationales (6 8x8 Operational Criteria)
+    st.subheader("📊 8x8 Operational Quality Criteria Breakdown")
 
-    dim_cols = st.columns(4)
     dimensions_meta = [
-        ("Teacher-Student Interaction", "teacher_student_interaction", "🗣️"),
-        ("Verbal Instructional Clarity", "verbal_instructional_clarity", "💡"),
-        ("Visual Demonstration", "visual_demonstration", "🖥️"),
-        ("Visual Presentation", "visual_presentation", "👤"),
+        ("Visual Compliance & Background", "visual_compliance", "📷"),
+        ("Rapport & Onboarding", "rapport_and_onboarding", "🤝"),
+        ("Individual Consideration", "individual_consideration", "🎯"),
+        ("Homework Assignment", "homework_assignment", "📝"),
+        ("Energy & Tone", "energy_and_tone", "⚡"),
+        ("Instructional Flow", "instructional_flow", "🔄"),
     ]
 
-    for col, (label, key, icon) in zip(dim_cols, dimensions_meta):
-        score = res.dimension_scores.get(key, 0)
-        with col:
-            st.metric(label=f"{icon} {label}", value=f"{score} / 4")
-            with st.expander("Rationale", expanded=False):
-                st.write(res.rationale.get(key, "No rationale provided."))
+    # Display in 2 rows of 3 columns
+    for row_start in [0, 3]:
+        cols = st.columns(3)
+        for col, (label, key, icon) in zip(cols, dimensions_meta[row_start : row_start + 3]):
+            score = res.dimension_scores.get(key, 0)
+            with col:
+                st.metric(label=f"{icon} {label}", value=f"{score} / 4")
+                with st.expander("Rationale", expanded=False):
+                    st.write(res.rationale.get(key, "No rationale provided."))
 
     st.markdown("---")
 
@@ -273,12 +308,16 @@ if res:
 
     obs_data = []
     for obs in res.observations:
-        if not search_query or search_query.lower() in obs.evidence.lower():
-            obs_data.append({
+        evidence_text = obs.evidence or ""
+        if not search_query or search_query.lower() in evidence_text.lower():
+            row = {
                 "Start": obs.timestamp_start or "N/A",
                 "End": obs.timestamp_end or "N/A",
-                "Observable Evidence": obs.evidence,
-            })
+                "Observable Evidence": evidence_text,
+            }
+            if getattr(obs, "rationale", None):
+                row["Rationale"] = obs.rationale
+            obs_data.append(row)
 
     if obs_data:
         st.dataframe(obs_data, use_container_width=True, hide_index=True)
@@ -302,7 +341,12 @@ if res:
         )
 
     with col_dl2:
-        markdown_report = f"""# Class Quality Evaluation Report
+        markdown_criteria_lines = "\n".join([
+            f"- **{label}:** {res.dimension_scores.get(key, 0)}/4\n  - *Rationale:* {res.rationale.get(key, 'N/A')}"
+            for label, key, _ in dimensions_meta
+        ])
+
+        markdown_report = f"""# 8x8 Class Quality Evaluation Report
 
 - **Overall Classification:** {res.overall_classification}
 - **Overall Score:** {res.overall_score:.2f} / 4.00
@@ -310,18 +354,15 @@ if res:
 ## Executive Summary
 {res.summary}
 
-## Dimension Scores & Rationales
-- **Teacher-Student Interaction:** {res.dimension_scores.get('teacher_student_interaction', 0)}/4
-  - *Rationale:* {res.rationale.get('teacher_student_interaction', '')}
-- **Verbal Instructional Clarity:** {res.dimension_scores.get('verbal_instructional_clarity', 0)}/4
-  - *Rationale:* {res.rationale.get('verbal_instructional_clarity', '')}
-- **Visual Demonstration:** {res.dimension_scores.get('visual_demonstration', 0)}/4
-  - *Rationale:* {res.rationale.get('visual_demonstration', '')}
-- **Visual Presentation:** {res.dimension_scores.get('visual_presentation', 0)}/4
-  - *Rationale:* {res.rationale.get('visual_presentation', '')}
+## 8x8 Operational Criteria Breakdown
+{markdown_criteria_lines}
 
 ## Timestamped Observations
-""" + "\n".join([f"- **[{obs.timestamp_start} - {obs.timestamp_end}]**: {obs.evidence}" for obs in res.observations])
+""" + "\n".join([
+            f"- **[{obs.timestamp_start} - {obs.timestamp_end}]**: {obs.evidence}"
+            + (f"\n  - *Pedagogical Note:* {obs.rationale}" if getattr(obs, "rationale", None) else "")
+            for obs in res.observations
+        ])
 
         st.download_button(
             label="📝 Download Markdown Report",

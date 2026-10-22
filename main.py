@@ -53,16 +53,16 @@ class ObservationItem(BaseModel):
     #     description="The operational criteria(s) that was not observed through out the video (e.g., rapport_and_onboarding, visual_compliance, individual_consideration etc).",
     #     default=None,
     # )
-    observed_operational_criteria: dict[
-        Literal["visual_compliance", "rapport_and_onboarding", "individual_consideration", "homework_assignment", "energy_and_tone", "instructional_flow"],str] | None = Field(
-        description="The operational criteria(s) that was observed through out the video (e.g., rapport_and_onboarding, visual_compliance, individual_consideration etc).",
-        default=None,
-    )
-    unobserved_operational_criteria: dict[
-        Literal["visual_compliance", "rapport_and_onboarding", "individual_consideration", "homework_assignment", "energy_and_tone", "instructional_flow"],str] | None = Field(
-        description="The operational criteria(s) that was not observed through out the video (e.g., rapport_and_onboarding, visual_compliance, individual_consideration etc).",
-        default=None,
-    )
+    # observed_operational_criteria: dict[
+    #     Literal["visual_compliance", "rapport_and_onboarding", "individual_consideration", "homework_assignment", "energy_and_tone", "instructional_flow"],str] | None = Field(
+    #     description="The operational criteria(s) that was observed through out the video (e.g., rapport_and_onboarding, visual_compliance, individual_consideration etc).",
+    #     default=None,
+    # )
+    # unobserved_operational_criteria: dict[
+    #     Literal["visual_compliance", "rapport_and_onboarding", "individual_consideration", "homework_assignment", "energy_and_tone", "instructional_flow"],str] | None = Field(
+    #     description="The operational criteria(s) that was not observed through out the video (e.g., rapport_and_onboarding, visual_compliance, individual_consideration etc).",
+    #     default=None,
+    # )
 
 class Observation_agent_schema(BaseModel):
     observations: list[ObservationItem] = Field(description="List of concrete observations.")
@@ -228,179 +228,6 @@ Anchors:
 Provide a score (1-4) and a concrete, evidence-based rationale citing the observations for each dimension.
 """
 
-
-# def evaluate_class_recording(
-#     video_path: str | Path,
-#     transcript_path: str | Path | None = None,
-#     progress_callback: Callable[[str, float], None] | None = None,
-#     ) -> outputSchema:
-#     """Evaluates an online class recording using a multi-agent AI pipeline.
-
-#     Args:
-#         video_path: Path to the video file on local disk.
-#         transcript_path: Optional path to a transcript file. If not provided, the evaluation will proceed without transcript analysis.
-#         progress_callback: Optional callable(stage_text, fraction_float) for UI progress updates.
-
-#     Returns:
-#         outputSchema: Validated evaluation output containing classification, scores, rationales, summary, and observations.
-#     """
-#     video_path = Path(video_path)
-#     if not video_path.exists():
-#         raise FileNotFoundError(f"Video file not found at: {video_path}")
-
-#     transcript_text = None
-#     if transcript_path:
-#         transcript_path = Path(transcript_path)
-#         if transcript_path.exists():
-#             transcript_text = transcript_path.read_text(encoding="utf-8")
-
-
-#     def update_progress(msg: str, frac: float):
-#         if progress_callback:
-#             progress_callback(msg, frac)
-#         else:
-#             print(f"[{int(frac * 100)}%] {msg}")
-
-#     client = genai.Client()
-#     # llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
-#     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
-
-
-#     video_file = None
-#     try:
-#         update_progress("Uploading video...", 0.10)
-#         video_file = client.files.upload(file=str(video_path))
-
-#         update_progress("Processing the video...", 0.20)
-#         max_wait = 300
-#         waited = 0
-#         while video_file.state.name == "PROCESSING":
-#             if waited >= max_wait:
-#                 raise TimeoutError("Video processing timed out.")
-#             time.sleep(3)
-#             waited += 3
-#             video_file = client.files.get(name=video_file.name)
-
-#         if video_file.state.name == "FAILED":
-#             raise ValueError(f"Video processing failed: {video_file.error}")
-
-
-        
-
-#         contents = [video_file]
-        
-#         if transcript_text:
-#             update_progress("Analyzing video and transcript...", 0.40)
-#             contents.append(
-#                 f"### OFFICIAL CLASS AUDIO TRANSCRIPT ###\n\n{transcript_text}\n\n### END OF TRANSCRIPT ###"
-#             )
-#             contents.append(
-#                 "Review the provided video recording alongside the audio transcript to generate concrete observations."
-#             )
-#         else:
-#             update_progress("Analyzing video...", 0.40)
-#             contents.append("Review this class recording.")
-
-#         # token_count = client.models.count_tokens(
-#         #     model="gemini-2.5-pro",
-#         #     contents=contents,
-#         # )
-
-#         # print("Input tokens:", token_count.total_tokens)            
-
-#         response = client.models.generate_content(
-#             model="gemini-2.5-pro",
-#             contents=contents,
-#             config=types.GenerateContentConfig(
-#                 system_instruction=observation_agent_prompt_template,
-#                 response_mime_type="application/json",
-#                 response_json_schema=Observation_agent_schema.model_json_schema(),
-#                 temperature=0,
-#             ),
-#         )
-
-#         obs_result: Observation_agent_schema = response.parsed
-#         if not obs_result or not obs_result.observations:
-#             raise ValueError("Failed to analyze the video.")
-
-#     finally:
-#         if video_file:
-#             try:
-#                 client.files.delete(name=video_file.name)
-#             except Exception as del_err:
-#                 print(f"Warning: Failed to delete remote file: {del_err}")
-
-#     observations_formatted = "\n".join([
-#         f"[{obs.timestamp_start} - {obs.timestamp_end}]: {obs.evidence}"
-#         for obs in obs_result.observations
-#     ])
-
-#     update_progress("Scoring the video...", 0.70)
-#     scoring_prompt = ChatPromptTemplate.from_messages([
-#         ("system", f"You are an expert teaching evaluation agent.\n\n{scoring_agent_prompt_template}"),
-#         ("human", "Here are the observations recorded from the class:\n\n{observations_text}\n\nEvaluate and score each dimension."),
-#     ])
-#     observation_scoring_agent = llm.with_structured_output(ObservationScoringOutput_agent_schema)
-#     scoring_chain = scoring_prompt | observation_scoring_agent
-#     scoring_result: ObservationScoringOutput_agent_schema = scoring_chain.invoke(
-#         {"observations_text": observations_formatted}
-#     )
-
-#     dimension_scores = scoring_result.dimension_scores.model_dump()
-#     calculated_overall_score = round(sum(dimension_scores.values()) / len(dimension_scores), 2)
-
-#     if calculated_overall_score >= 3.50:
-#         classification = "Excellent"
-#     elif calculated_overall_score >= 2.75:
-#         classification = "Good"
-#     elif calculated_overall_score >= 1.75:
-#         classification = "Average"
-#     else:
-#         classification = "Poor"
-
-#     update_progress("Summarizing the result...", 0.85)
-#     summary_prompt = ChatPromptTemplate.from_messages([
-#         (
-#             "system",
-#             "You are an educational evaluator. Write a concise, evidence-based executive summary explaining the reason for providing the final rating.",
-#         ),
-#         (
-#             "human","""
-#     Classification: {classification} 
-#     calculated_overall_score: {calculated_overall_score}
-#     Dimension Scores: {dimension_scores}
-#     Rationales: {rationales}
-
-#     Key Observations:
-#     {observations_formatted}
-
-#     Provide a concise summary paragraph.
-#     """,
-#         ),
-#     ])
-#     summarising_agent = llm.with_structured_output(summarising_agent_schema)
-#     summarising_chain = summary_prompt | summarising_agent
-#     summary_result = summarising_chain.invoke({
-#         "classification": classification,
-#         "calculated_overall_score": calculated_overall_score,
-#         "dimension_scores": str(dimension_scores),
-#         "rationales": str(scoring_result.rationale),
-#         "observations_formatted": observations_formatted,
-#     })
-
-#     update_progress("Finalizing the result...", 1.0)
-#     final_output = outputSchema(
-#         overall_classification=classification,
-#         overall_score=calculated_overall_score,
-#         summary=summary_result.summary,
-#         dimension_scores=dimension_scores,
-#         rationale=scoring_result.rationale,
-#         observations=obs_result.observations,
-#     )
-
-#     return final_output
-
-
 def parse_vtt_timestamp(ts_str: str) -> float:
     """Converts HH:MM:SS.mmm to seconds."""
     parts = ts_str.strip().split(":")
@@ -464,12 +291,18 @@ def deduplicate_observations(observations: list) -> list:
             unique.append(obs)
     return unique
 
+def format_seconds_to_hhmmss(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
 
-def evaluate_class_recording_chunked(
+
+def evaluate_class_recording(
     video_path: str | Path,
     transcript_path: str | Path | None = None,
-    chunk_minutes: int = 10,
-    overlap_seconds: int = 20,
+    chunk_minutes: int = 30,
+    overlap_seconds: int = 0,
     progress_callback: Callable[[str, float], None] | None = None,
 ) -> outputSchema:
     video_path = Path(video_path)
@@ -498,15 +331,22 @@ def evaluate_class_recording_chunked(
             print(f"[{int(frac * 100)}%] {msg}")
 
     client = genai.Client()
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+    scoring_llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0)
     all_observations = []
+
+    update_progress(f"Starting evaluation ({len(chunks)} segments)...", 0.05)
+
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
 
         for i, (chunk_start, chunk_len) in enumerate(chunks):
             chunk_file = temp_dir / f"chunk_{i}.mp4"
             video_ref = None
-            try:            
+            try:     
+                chunk_base_pct = 0.05 + (i / len(chunks)) * 0.60
+                update_progress(f"Uploading and processing Chunk {i+1}/{len(chunks)}...", chunk_base_pct)
+       
                 slice_video_chunk(video_path, chunk_file, chunk_start, chunk_len)
 
                 chunk_transcript = slice_vtt_transcript(transcript_content, chunk_start, chunk_start + chunk_len)
@@ -517,7 +357,7 @@ def evaluate_class_recording_chunked(
                 waited = 0
                 while video_ref.state.name == "PROCESSING":
                     if waited >= max_wait:
-                        raise TimeoutError(f"Processing chunk {i+1} timed out on Gemini.")
+                        raise TimeoutError(f"Processing chunk {i+1} timed out.")
                     time.sleep(2)
                     waited += 2
                     video_ref = client.files.get(name=video_ref.name)
@@ -525,22 +365,38 @@ def evaluate_class_recording_chunked(
                 if video_ref.state.name == "FAILED":
                     raise ValueError(f"Video processing failed: {video_ref.error}")
 
+                chunk_context_prompt = f"""
+IMPORTANT TIMING NOTE:
+You are provided a slice from a full video to analyze.This video slice covers the time: {format_seconds_to_hhmmss(chunk_start)} to {format_seconds_to_hhmmss(chunk_start + chunk_len)} of a video.
+All timestamps in your observations MUST use absolute class timeline format (starting from {format_seconds_to_hhmmss(chunk_start)} onwards), matching the provided transcript cues.
+"""
+
                 contents = [video_ref]
                 if chunk_transcript:
                     contents.append(f"### OFFICIAL CLASS AUDIO TRANSCRIPT ###\n\n{chunk_transcript}\n\n### END OF TRANSCRIPT ###")
                 contents.append("Review the provided video recording alongside the audio transcript to generate concrete observations.")
+                
+                chunk_analyze_pct = chunk_base_pct + (0.60 / len(chunks)) * 0.5
 
+                update_progress(f"Analyzing Chunk {i+1}/{len(chunks)}...", chunk_analyze_pct)
+
+
+                
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        system_instruction=observation_agent_prompt_template,
+                        system_instruction=observation_agent_prompt_template + "\n" + chunk_context_prompt,
                         response_mime_type="application/json",
                         response_json_schema=Observation_agent_schema.model_json_schema(),
                         temperature=0,
                     ),
                 )
-                parsed: Observation_agent_schema = response.parsed
+
+                parsed = response.parsed
+                if isinstance(parsed, dict):
+                    parsed = Observation_agent_schema.model_validate(parsed)
+                
                 if parsed and parsed.observations:
                     all_observations.extend(parsed.observations)
 
@@ -562,7 +418,7 @@ def evaluate_class_recording_chunked(
 
 
     observations_formatted = "\n".join([
-        f"[{obs.timestamp_start} - {obs.timestamp_end}]: {obs.evidence}"
+        f"[{obs.timestamp_start} - {obs.timestamp_end}]: {obs.evidence} (observed factor: {obs.rationale})"
         for obs in obs_result.observations
     ])
 
@@ -571,7 +427,7 @@ def evaluate_class_recording_chunked(
         ("system", f"You are an expert teaching evaluation agent.\n\n{scoring_agent_prompt_template}"),
         ("human", "Here are the observations recorded from the class:\n\n{observations_text}\n\nEvaluate and score each dimension."),
     ])
-    observation_scoring_agent = llm.with_structured_output(ObservationScoringOutput_agent_schema)
+    observation_scoring_agent = scoring_llm.with_structured_output(ObservationScoringOutput_agent_schema)
     scoring_chain = scoring_prompt | observation_scoring_agent
     scoring_result: ObservationScoringOutput_agent_schema = scoring_chain.invoke(
         {"observations_text": observations_formatted}
@@ -635,6 +491,5 @@ def evaluate_class_recording_chunked(
 if __name__ == "__main__":
     sample_video = "videos/B482 Intermediate Part  - 2026-09-02.mp4"
     sample_transcript = "videos/B482 Intermediate -transcript-1.1.vtt"
-    print(f"Evaluating {sample_video}...")
-    evaluation = evaluate_class_recording_chunked(sample_video, sample_transcript)
+    evaluation = evaluate_class_recording(sample_video, sample_transcript)
     print("\n" + evaluation.model_dump_json(indent=2))
