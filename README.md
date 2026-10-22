@@ -1,6 +1,6 @@
-# 🎓 8x8 AI Class Quality Evaluator
+# 🎓 8x8 AI Online Class Quality Evaluator
 
-An AI-powered multimodal application designed to evaluate the quality of online classes for children (conducted by 8x8). The system analyzes full-length class recordings across visual and auditory signals to categorize teaching sessions as **Poor**, **Average**, **Good**, or **Excellent**, delivering concrete, timestamped, evidence-based pedagogical feedback.
+An AI-powered multimodal application designed to evaluate the operational and pedagogical quality of online classes for children (conducted by 8x8). The system analyzes full-length class recordings (visual and auditory signals) alongside optional audio transcripts to classify teaching sessions as **Poor**, **Average**, **Good**, or **Excellent**, delivering concrete, timestamped, evidence-based feedback.
 
 Built for the **Humaniti AI 24-Hour Build Challenge**.
 
@@ -8,69 +8,96 @@ Built for the **Humaniti AI 24-Hour Build Challenge**.
 
 ## 🌟 Key Features
 
-1. **Multimodal Analysis:** Evaluates direct visual signals (camera framing, posture, screen demonstrations on Lichess/ChessKid) and auditory dialogue (tone, question pacing, checks for understanding).
-2. **Decoupled Multi-Agent Architecture:**
-   - **Observation Agent (Gemini 2.5 Flash via Files API):** Extracts structured, temporally consolidated (1–3 min) observations without scoring.
-   - **Scoring Agent:** Evaluates 4 core pedagogical dimensions on a 1–4 integer rubric and provides evidence-backed rationales.
-   - **Deterministic Classifier:** Computes arithmetic mean and assigns threshold-based classifications (`Poor`, `Average`, `Good`, `Excellent`) deterministically in code.
-   - **Summarising Agent:** Synthesizes an executive overview explaining the rating.
-3. **Strict Child Data Privacy:**
-   - Student names are strictly anonymized as `"Student A"`, `"Student B"`, or generic terms.
+1. **Multimodal Analysis with Video & Transcript Alignment:**
+   - Evaluates direct visual signals (camera status, face framing, posture, lighting, and mandatory 8x8 branded virtual background).
+   - Ingests audio and synchronized VTT/SRT transcripts to evaluate turn-taking, onboarding, audio clarity, and pacing.
+
+2. **6-Dimension 8x8 QA Evaluation Rubric:**
+   - Evaluates sessions across all six core operational quality criteria:
+     1. 📷 **Visual Compliance & Background:** Mandatory 8x8 virtual background, camera kept ON with face visible throughout, good lighting without glitches.
+     2. 🤝 **Rapport & Onboarding:** Warm rapport at class start (check-ins/warm-ups), proper introduction/onboarding for new joiners, and structured conclusions.
+     3. 🎯 **Individual Consideration:** Calling each student by name, balanced turn-taking, and active engagement of quieter students.
+     4. 📝 **Homework Assignment:** Explicit homework assigned before transitioning to tournaments or class conclusion.
+     5. ⚡ **Energy & Tone:** Energetic, warm, and pleasant vocal delivery with clear audibility.
+     6. 🔄 **Instructional Flow:** Structured progression (concept introduction, interactive demonstration, guided puzzles, and practice games without premature ending).
+
+3. **High-Efficiency Chunked Architecture:**
+   - Handles full 1-hour sessions using lossless FFmpeg video slicing (`imageio-ffmpeg` with `-c copy`) into 30-minute processing windows.
+   - Slices and aligns matching VTT transcript cues to each video slice.
+   - Preserves absolute timeline continuity using chunk-context prompts (`00:00:00` through `00:59:59`).
+   - Deduplicates observations across chunk boundaries.
+
+4. **Multi-Agent Pipeline:**
+   - **Observation Agent (Gemini):** Extracts concrete, timestamped observations (`HH:MM:SS`) with pedagogical rationales using structured Pydantic decoding.
+   - **Scoring Agent:** Rates all 6 dimensions on a 1–4 integer rubric backed by rationale citing observed evidence.
+   - **Deterministic Classifier:** Pure Python computation of the arithmetic mean and boundary classification (eliminating LLM arithmetic hallucinations).
+   - **Summarising Agent:** Synthesizes an executive pedagogical summary explaining the classification.
+
+5. **Strict Child Privacy by Design:**
+   - Student identities are strictly anonymized as `"Student A"`, `"Student B"`, or `"Teacher"`.
    - Files uploaded to the Gemini Files API are deleted immediately from remote servers via `finally` blocks upon completion.
-   - Video files and `.env` are strictly excluded from version control via `.gitignore`.
-4. **Interactive Streamlit Dashboard:**
-   - Supports **File Uploads**, **Direct Video URLs**, and **Local Sample Videos**.
+   - Temporary local video slices are purged automatically from disk.
+   - Video media and `.env` credentials are strictly excluded from version control via `.gitignore`.
+   - The deployed UI exclusively accepts direct user input (no sample recordings exposed).
+
+6. **Interactive Streamlit Web Dashboard:**
+   - Supports **File Uploads** (with optional transcript uploader) and **Direct Video URLs**.
    - Live progress indicator showing multi-agent pipeline stages.
-   - Interactive observation table with keyword filtering.
-   - One-click JSON and Markdown report export.
+   - 2×3 metric grid displaying scores for all 6 dimensions with expandable rationales.
+   - Interactive observation table with keyword search and filtering.
+   - Embedded video preview for instant verification.
 
 ---
 
-## 🏗️ Architecture & Approach
+## 🏗️ System Architecture
 
 ```
-                    [ Class Video Recording ]
-                     (Upload / URL / Sample)
-                               │
-                               ▼
-                   ┌───────────────────────┐
-                   │   Observation Agent   │  <-- Gemini 2.5 Flash (Multimodal)
-                   │  (Files API + Video)  │  <-- Strict Anonymization Prompt
-                   └───────────┬───────────┘
-                               │ Structured Observations (HH:MM:SS)
-                               ▼
-                   ┌───────────────────────┐
-                   │     Scoring Agent     │  <-- 4 Dimensions (Score 1-4)
-                   │ (LangChain + Gemini)  │  <-- Explicit Rationale
-                   └───────────┬───────────┘
-                               │ Scores & Rationales
-                               ▼
-                   ┌───────────────────────┐
-                   │ Deterministic Engine  │  <-- Arithmetic Mean (1.00 - 4.00)
-                   │  (Python Code Logic)  │  <-- Boundary Classification
-                   └───────────┬───────────┘
-                               │
-                               ▼
-                   ┌───────────────────────┐
-                   │   Summarising Agent   │  <-- Executive Pedagogical Summary
-                   └───────────┬───────────┘
-                               │
-                               ▼
-                [ Streamlit Interactive UI / Report ]
+                 [ Class Video Recording (.mp4) ] + [ Optional Transcript (.vtt) ]
+                                      │
+                                      ▼
+                        ┌──────────────────────────┐
+                        │   FFmpeg Chunking Engine │  <-- Lossless stream slicing (30m windows)
+                        │  & VTT Transcript Slicer │  <-- Synchronized cue extraction
+                        └─────────────┬────────────┘
+                                      │
+                                      ▼
+                        ┌──────────────────────────┐
+                        │    Observation Agent     │  <-- Gemini Multimodal + Transcript Cues
+                        │   (Gemini Files API)     │  <-- Strict Student Anonymization
+                        └─────────────┬────────────┘
+                                      │ Timestamped Events & Rationales
+                                      ▼
+                        ┌──────────────────────────┐
+                        │      Scoring Agent       │  <-- Evaluates 6 8x8 Operational Dimensions
+                        │  (Gemini + LangChain)    │  <-- Evidence-backed rationales (1-4)
+                        └─────────────┬────────────┘
+                                      │
+                                      ▼
+                        ┌──────────────────────────┐
+                        │   Deterministic Engine   │  <-- Arithmetic Mean (1.00 - 4.00)
+                        │   (Python Code Logic)    │  <-- Exact Threshold Classification
+                        └─────────────┬────────────┘
+                                      │
+                                      ▼
+                        ┌──────────────────────────┐
+                        │    Summarising Agent     │  <-- Executive Pedagogical Summary
+                        └─────────────┬────────────┘
+                                      │
+                                      ▼
+                        [ Streamlit Web Dashboard ]
 ```
 
 ---
 
-## 📋 Evaluation Rubric
+## 📋 Evaluation Criteria & Classification Rubric
 
-| Dimension | Focus |
-|---|---|
-| **1. Teacher-Student Interaction** | Conversational engagement, responsiveness to student questions, check-ins. |
-| **2. Verbal Instructional Clarity** | Clarity of conceptual explanation, pacing, breaking down complex rules. |
-| **3. Visual Demonstration** | Effective use of visual aids, boards (e.g. lichess.org), and explanatory videos. |
-| **4. Visual Presentation** | Teacher camera status, framing/visibility, posture, and learning climate. |
+### 8x8 Operational Dimensions (Scored 1 to 4)
+- **1 = Poor:** Significant or repeated problems that interfere with instruction or policy compliance.
+- **2 = Average:** Some effective practice with noticeable recurring gaps.
+- **3 = Good:** Generally effective practice with only minor gaps.
+- **4 = Excellent:** Consistently effective practice with multiple clear examples.
 
-### Classification Thresholds (Arithmetic Mean of 4 Dimensions)
+### Classification Thresholds (Arithmetic Mean of 6 Dimensions)
 - **3.50 – 4.00:** Excellent
 - **2.75 – 3.49:** Good
 - **1.75 – 2.74:** Average
@@ -86,8 +113,8 @@ Built for the **Humaniti AI 24-Hour Build Challenge**.
 
 ### 2. Installation
 ```bash
-git clone <your-repo-url>
-cd Humanti_coding_round
+git clone https://github.com/balagopan/online_teaching_quality_assessment_agent.git
+cd online_teaching_quality_assessment_agent
 
 # Create virtual environment
 python -m venv .venv
@@ -103,7 +130,7 @@ Create a `.env` file in the root directory:
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 4. Running the Application
+### 4. Running Locally
 ```bash
 streamlit run app.py
 ```
@@ -114,10 +141,10 @@ Open your browser at `http://localhost:8501`.
 ## 📝 300-Word Project Reflection
 
 > **Approach:**  
-> To evaluate children's online classes within a tight 4–5 hour timeframe, we leveraged Gemini 2.5 Flash's native long-context multimodal video processing via the Google GenAI Files API. Rather than relying on a single monolithic prompt, we engineered a modular multi-agent pipeline: an Observation Agent first extracts timestamped multimodal evidence, a Scoring Agent rates four pedagogical dimensions (Interaction, Clarity, Demonstration, Presentation) with explicit rationales, a deterministic Python engine computes arithmetic means and classification boundaries, and a Summarising Agent generates an executive synthesis.
+> To evaluate 8x8 children's online classes within a 24-hour challenge, we designed a modular multi-agent pipeline anchored on Google Gemini's native multimodal capabilities. Rather than passing unsegmented 60-minute recordings to a monolithic prompt, we built a lossless FFmpeg chunking engine that pairs 30-minute video slices with aligned VTT transcripts while preserving absolute timeline continuity. An Observation Agent first extracts timestamped multimodal evidence across six 8x8 QA criteria (Visual Compliance, Rapport & Onboarding, Individual Consideration, Homework Assignment, Energy & Tone, Instructional Flow). A Scoring Agent rates each dimension (1–4) with rationales, a deterministic Python engine computes arithmetic means and boundary classifications, and a Summarising Agent synthesizes an executive pedagogical overview.
 >
 > **Successes:**  
-> The system excels at detecting subtle visual and auditory signals: camera framing errors (e.g., teacher only partially visible), external media usage (screen-shared videos, interactive chess boards), and student turn-taking. Calculating scores and threshold classifications deterministically in code eliminated LLM arithmetic hallucinations. Most importantly, privacy is preserved through negative prompting that strips student names and an automated lifecycle that deletes video files from remote servers immediately after evaluation.
+> The system excels at detecting nuanced operational non-compliance: identifying when a tutor's camera was turned off during teaching, tracking when the mandatory 8x8 branded virtual background was missing, recognizing audio clarity deficits, flagging skipped new-joiner introductions, and noticing missed homework assignments. Computing overall classifications deterministically in code eliminated LLM arithmetic errors. Crucially, child privacy is strictly protected: student names are automatically anonymized (`Student A`, `Student B`), remote video files are deleted immediately after inference via `finally` blocks, and all recordings are strictly excluded from version control.
 >
 > **Limitations:**  
-> Video processing over the Files API introduces a 1–2 minute server-side ingestion delay for long recordings. Additionally, evaluating multi-student sessions with poor audio quality or overlapping dialogue occasionally leads to consolidated timestamps rather than speaker-level micro-timings. Future iterations could incorporate real-time WebRTC stream analysis and local whisper-based diarization for granular speaker separation.
+> Ingesting long video files via the Files API requires an initial 1–2 minute processing phase on server upload. Furthermore, low-resolution recordings or overlapping student audio can occasionally yield consolidated event intervals rather than speaker-level micro-timings. Future iterations could integrate real-time WebRTC stream analysis and local speaker diarization for granular turn-taking measurement.
