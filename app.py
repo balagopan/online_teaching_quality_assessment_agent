@@ -91,18 +91,14 @@ def download_video_from_url(url: str, dest_path: Path, progress_bar) -> None:
 
 # ================= Sidebar =================
 with st.sidebar:
-    st.header("⚙️ Configuration")
-    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-    if api_key:
-        st.success("Google Gemini API Key detected", icon="✅")
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        st.error("API Key not found in .env. Please configure your .env file.", icon="⚠️")
     else:
-        st.error("API Key not found in .env", icon="⚠️")
-        custom_key = st.text_input("Enter Gemini API Key", type="password")
-        if custom_key:
-            os.environ["GOOGLE_API_KEY"] = custom_key
-            os.environ["GEMINI_API_KEY"] = custom_key
+        # Ensure both standard environment variable names are set from .env
+        os.environ.setdefault("GEMINI_API_KEY", api_key)
+        os.environ.setdefault("GOOGLE_API_KEY", api_key)
 
-    st.markdown("---")
     st.header("Upload Video & Transcript Source")
     input_source = st.radio(
         "Choose video source:",
@@ -181,6 +177,10 @@ if "evaluation_result" not in st.session_state:
 start_eval = st.button("🚀 Evaluate Recording", type="primary", use_container_width=True)
 
 if start_eval:
+    if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+        st.error("API Key not found in .env. Please configure your .env file before running evaluation.")
+        st.stop()
+
     target_path = None
     target_transcript_path = None
     temp_dir = tempfile.mkdtemp()
