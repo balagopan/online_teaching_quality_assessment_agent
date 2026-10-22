@@ -156,7 +156,7 @@ Provide a score (1-4) and a concrete, evidence-based rationale citing the observ
 def evaluate_class_recording(
     video_path: str | Path,
     progress_callback: Callable[[str, float], None] | None = None,
-) -> outputSchema:
+    ) -> outputSchema:
     """Evaluates an online class recording using a multi-agent AI pipeline.
 
     Args:
@@ -181,17 +181,15 @@ def evaluate_class_recording(
 
     video_file = None
     try:
-        # Step 1: Upload to Gemini Files API
-        update_progress("Uploading video to Gemini Files API...", 0.10)
+        update_progress("Uploading video...", 0.10)
         video_file = client.files.upload(file=str(video_path))
 
-        # Step 2: Poll until video is processed
-        update_progress("Processing video on server...", 0.20)
+        update_progress("Processing the video...", 0.20)
         max_wait = 300
         waited = 0
         while video_file.state.name == "PROCESSING":
             if waited >= max_wait:
-                raise TimeoutError("Video processing timed out on Gemini server.")
+                raise TimeoutError("Video processing timed out.")
             time.sleep(3)
             waited += 3
             video_file = client.files.get(name=video_file.name)
@@ -199,8 +197,7 @@ def evaluate_class_recording(
         if video_file.state.name == "FAILED":
             raise ValueError(f"Video processing failed: {video_file.error}")
 
-        # Step 3: Observation Agent
-        update_progress("Observation Agent analyzing multimodal video signals...", 0.40)
+        update_progress("Analyzing the video...", 0.40)
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[video_file, "Review this class recording."],
@@ -214,24 +211,21 @@ def evaluate_class_recording(
 
         obs_result: Observation_agent_schema = response.parsed
         if not obs_result or not obs_result.observations:
-            raise ValueError("Observation agent failed to extract observations from video.")
+            raise ValueError("Failed to analyze the video.")
 
     finally:
-        # Ensure remote file is cleaned up immediately to protect data privacy
         if video_file:
             try:
                 client.files.delete(name=video_file.name)
             except Exception as del_err:
                 print(f"Warning: Failed to delete remote file: {del_err}")
 
-    # Step 4: Format observations for downstream agents
     observations_formatted = "\n".join([
         f"[{obs.timestamp_start} - {obs.timestamp_end}]: {obs.evidence}"
         for obs in obs_result.observations
     ])
 
-    # Step 5: Scoring Agent
-    update_progress("Scoring Agent assessing 4 pedagogical dimensions...", 0.70)
+    update_progress("Scoring the video...", 0.70)
     scoring_prompt = ChatPromptTemplate.from_messages([
         ("system", f"You are an expert teaching evaluation agent.\n\n{SCORING_PROMPT_TEMPLATE}"),
         ("human", "Here are the observations recorded from the class:\n\n{observations_text}\n\nEvaluate and score each dimension."),
@@ -242,7 +236,6 @@ def evaluate_class_recording(
         {"observations_text": observations_formatted}
     )
 
-    # Step 6: Deterministic Overall Score & Classification
     dimension_scores = scoring_result.dimension_scores.model_dump()
     calculated_overall_score = round(sum(dimension_scores.values()) / len(dimension_scores), 2)
 
@@ -255,26 +248,24 @@ def evaluate_class_recording(
     else:
         classification = "Poor"
 
-    # Step 7: Summarising Agent
-    update_progress("Synthesizing executive summary and pedagogical rationale...", 0.85)
+    update_progress("Summarizing the result...", 0.85)
     summary_prompt = ChatPromptTemplate.from_messages([
         (
             "system",
             "You are an educational evaluator. Write a concise, evidence-based executive summary explaining the reason for providing the final rating.",
         ),
         (
-            "human",
-            """
-Classification: {classification} 
-calculated_overall_score: {calculated_overall_score}
-Dimension Scores: {dimension_scores}
-Rationales: {rationales}
+            "human","""
+    Classification: {classification} 
+    calculated_overall_score: {calculated_overall_score}
+    Dimension Scores: {dimension_scores}
+    Rationales: {rationales}
 
-Key Observations:
-{observations_formatted}
+    Key Observations:
+    {observations_formatted}
 
-Provide a concise summary paragraph.
-""",
+    Provide a concise summary paragraph.
+    """,
         ),
     ])
     summarising_agent = llm.with_structured_output(summarising_agent_schema)
@@ -287,8 +278,7 @@ Provide a concise summary paragraph.
         "observations_formatted": observations_formatted,
     })
 
-    # Step 8: Build Final Output
-    update_progress("Evaluation complete!", 1.0)
+    update_progress("Finalizing the result...", 1.0)
     final_output = outputSchema(
         overall_classification=classification,
         overall_score=calculated_overall_score,
@@ -304,5 +294,5 @@ Provide a concise summary paragraph.
 if __name__ == "__main__":
     sample_video = "videos/B435 Intermediate Part  - 2026-08-28.mp4"
     print(f"Evaluating {sample_video}...")
-    res = evaluate_class_recording(sample_video)
-    print("\n" + res.model_dump_json(indent=2))
+    evaluation = evaluate_class_recording(sample_video)
+    print("\n" + evaluation.model_dump_json(indent=2))
