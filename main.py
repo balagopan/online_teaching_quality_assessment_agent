@@ -434,7 +434,21 @@ All timestamps in your observations MUST use absolute class timeline format (sta
     )
 
     dimension_scores = scoring_result.dimension_scores.model_dump()
-    calculated_overall_score = round(sum(dimension_scores.values()) / len(dimension_scores), 2)
+
+    weights = {
+        "visual_compliance": 1.0,
+        "homework_assignment": 1.0,
+        "rapport_and_onboarding": 1.5,
+        "individual_consideration": 1.5,
+        "energy_and_tone": 1.5,
+        "instructional_flow": 1.5
+    }
+
+    weighted_sum = sum(dimension_scores[key] * weights[key] for key in dimension_scores)
+
+    total_weight = sum(weights.values())
+
+    calculated_overall_score = round(weighted_sum / total_weight, 2)
 
     if calculated_overall_score >= 3.50:
         classification = "Excellent"
