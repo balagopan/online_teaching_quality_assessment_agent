@@ -2,6 +2,10 @@
 
 An AI-powered multimodal application designed to evaluate the quality of online classes for children. The system analyzes full-length class recordings (visual and auditory signals) alongside optional audio transcripts to classify the quality of the online class sessions as **Poor**, **Average**, **Good**, or **Excellent**, delivering concrete, timestamped, evidence-based feedback.
 
+## 🌐 Live Demo
+
+[Try the live application](https://onlineteachingqualityassessmentagent-3wwrpvvs4bqdhwcxc6b8sr.streamlit.app/).
+
 ---
 
 ## 🌟 Key Features
